@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 资讯站</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0c0c0f; color: #e1e1e6; font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif; min-height: 100vh; }
+
+/* Header */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(12,12,15,0.95); backdrop-filter: blur(16px);
+  border-bottom: 1px solid #1c1c24;
+  padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between; height: 52px;
+}
+.logo { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.logo span { color: #6366f1; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.ts { font-size: 11px; color: #444; }
+.refresh-btn {
+  background: transparent; border: 1px solid #222230; color: #555;
+  padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  transition: all 0.15s;
+}
+.refresh-btn:hover { border-color: #6366f1; color: #6366f1; }
+.refresh-btn.loading { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 0;
+  background: rgba(12,12,15,0.95);
+  border-bottom: 1px solid #1c1c24;
+  padding: 0 24px;
+  position: sticky; top: 52px; z-index: 99;
+}
+.tab {
+  padding: 10px 18px; font-size: 13px; font-weight: 500; color: #555;
+  border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.15s;
+  user-select: none;
+}
+.tab:hover { color: #999; }
+.tab.active { color: #fff; border-bottom-color: #6366f1; }
+.tab-count {
+  display: inline-block; background: #1e1e2a; color: #555;
+  font-size: 10px; border-radius: 8px; padding: 1px 6px; margin-left: 6px;
+}
+.tab.active .tab-count { background: #2d2d50; color: #8b8dff; }
+
+/* Content panels */
+.panel { display: none; max-width: 760px; margin: 0 auto; padding: 24px 20px 80px; }
+.panel.active { display: block; }
+
+/* Loading */
+.loading { text-align: center; padding: 80px 0; }
+.spinner { width: 24px; height: 24px; border: 2px solid #1e1e2a; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: #333; }
+
+/* AIHOT cards */
+.category-group { margin-bottom: 32px; }
+.category-label {
+  font-size: 10px; font-weight: 700; color: #444; letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid #18181f;
+}
+.news-card {
+  background: #111116; border: 1px solid #1c1c26;
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 8px;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer; text-decoration: none; display: block;
+}
+.news-card:hover { border-color: #2e2e48; background: #131318; }
+.news-title { font-size: 14px; font-weight: 600; color: #dde0f0; line-height: 1.45; margin-bottom: 6px; }
+.news-summary { font-size: 12.5px; color: #666; line-height: 1.6; margin-bottom: 8px; }
+.news-meta { display: flex; align-items: center; gap: 10px; }
+.news-source { font-size: 11px; color: #3a3a55; }
+.news-date { font-size: 11px; color: #333; }
+.news-tag {
+  font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.tag-model { background: #1a1040; color: #7c5cfc; }
+.tag-product { background: #0f1f30; color: #3d8ef5; }
+.tag-research { background: #0f2010; color: #3daf5c; }
+.tag-industry { background: #201510; color: #d4793a; }
+.tag-tool { background: #151520; color: #8888cc; }
+.tag-other { background: #181818; color: #555; }
+
+/* Builder section */
+.section-label { font-size: 10px; font-weight: 700; color: #333; letter-spacing: 1.5px; text-transform: uppercase; margin: 28px 0 12px; }
+
+/* Podcast */
+.podcast-card {
+  background: linear-gradient(135deg, #12111e, #181628);
+  border: 1px solid #251f45; border-radius: 12px; padding: 18px; margin-bottom: 20px;
+}
+.podcast-show { font-size: 10px; color: #7060cc; font-weight: 700; letter-spacing: 1px; margin-bottom: 5px; }
+.podcast-title { font-size: 15px; font-weight: 600; color: #e8e8f8; line-height: 1.4; margin-bottom: 8px; }
+.podcast-footer { display: flex; align-items: center; justify-content: space-between; }
+.podcast-date { font-size: 11px; color: #444; }
+.podcast-link { font-size: 12px; color: #7060cc; text-decoration: none; }
+.podcast-link:hover { color: #9080ee; }
+
+/* Builder card */
+.builder-card { margin-bottom: 20px; }
+.builder-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.builder-name { font-size: 13px; font-weight: 600; color: #d8d8e8; }
+.builder-handle { font-size: 11px; color: #3a3a52; margin-top: 1px; }
+.builder-bio { font-size: 11px; color: #3a3a52; margin-top: 2px; }
+
+/* Tweet embeds */
+.tweet-embed-wrapper {
+  background: #0d0d12; border-radius: 8px; overflow: hidden;
+  margin-bottom: 8px; min-height: 60px;
+}
+.tweet-embed-wrapper .twitter-tweet { margin: 0 !important; }
+.tweet-fallback {
+  padding: 10px 12px; background: #0d0d12; border-radius: 8px;
+  border-left: 2px solid #2a2a40; margin-bottom: 8px;
+}
+.tweet-fallback-text { font-size: 13px; color: #b0b0c8; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.tweet-fallback-link { display: inline-block; margin-top: 6px; font-size: 11px; color: #4a4a88; text-decoration: none; }
+.tweet-fallback-link:hover { color: #6366f1; }
+
+/* Divider */
+.divider { border: none; border-top: 1px solid #18181f; margin: 20px 0; }
+
+.empty { text-align: center; padding: 60px 0; color: #333; font-size: 13px; }
+
+/* BuilderPulse markdown */
+.bp-content { max-width: 760px; margin: 0 auto; padding: 28px 20px 80px; }
+.bp-content h1 { font-size: 18px; font-weight: 700; color: #e8e8f8; margin: 0 0 20px; }
+.bp-content h2 { font-size: 15px; font-weight: 700; color: #c8c8e8; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #1e1e2a; }
+.bp-content h3 { font-size: 14px; font-weight: 600; color: #aaaacc; margin: 18px 0 8px; }
+.bp-content p { font-size: 13.5px; color: #999; line-height: 1.75; margin-bottom: 12px; }
+.bp-content a { color: #6366f1; text-decoration: none; }
+.bp-content a:hover { text-decoration: underline; }
+.bp-content strong { color: #d0d0e8; font-weight: 600; }
+.bp-content code { background: #1a1a28; color: #a78bfa; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', monospace; }
+.bp-content blockquote { border-left: 3px solid #2e2e50; padding-left: 14px; margin: 12px 0; color: #666; font-style: italic; }
+.bp-content ul, .bp-content ol { padding-left: 20px; margin-bottom: 12px; }
+.bp-content li { font-size: 13.5px; color: #888; line-height: 1.7; margin-bottom: 4px; }
+.bp-content hr { border: none; border-top: 1px solid #18181f; margin: 24px 0; }
+.bp-content table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12.5px; }
+.bp-content th { background: #131320; color: #8888cc; font-weight: 600; padding: 7px 10px; text-align: left; border-bottom: 1px solid #2a2a40; }
+.bp-content td { padding: 7px 10px; color: #888; border-bottom: 1px solid #18181f; vertical-align: top; }
+.bp-content tr:hover td { background: #111118; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">AI <span>资讯站</span></div>
+  <div class="header-right">
+    <span class="ts" id="ts"></span>
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshAll()">↻ 刷新</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('aihot')">
+    AI 资讯 <span class="tab-count" id="aihot-count">—</span>
+  </div>
+  <div class="tab" onclick="switchTab('builders')">
+    Builder 动态 <span class="tab-count" id="builders-count">—</span>
+  </div>
+  <div class="tab" onclick="switchTab('builderpulse')">
+    BuilderPulse
+  </div>
+</div>
+
+<div class="panel active" id="panel-aihot">
+  <div class="loading"><div class="spinner"></div><div class="loading-text">正在加载 AI 资讯…</div></div>
+</div>
+
+<div class="panel" id="panel-builders">
+  <div class="loading"><div class="spinner"></div><div class="loading-text">正在加载 Builder 动态…</div></div>
+</div>
+
+<div class="panel" id="panel-builderpulse">
+  <div class="loading"><div class="spinner"></div><div class="loading-text">正在加载 BuilderPulse…</div></div>
+</div>
+
+<script>
+let currentTab = 'aihot';
+let twitterScriptLoaded = false;
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['aihot','builders','builderpulse'][i] === tab);
+  });
+  document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'builders') renderEmbeds();
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+}
+function fmtNum(n) {
+  if (!n) return '';
+  return n >= 1000 ? (n/1000).toFixed(1)+'k' : n;
+}
+function initials(name) {
+  return (name||'?').split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+}
+function hue(s) {
+  let h=0; for(let c of s) h=(h*31+c.charCodeAt(0))&0xffffffff;
+  return Math.abs(h)%360;
+}
+function tagClass(cat) {
+  return { model:'tag-model', product:'tag-product', research:'tag-research', industry:'tag-industry', tool:'tag-tool' }[cat] || 'tag-other';
+}
+function tagLabel(cat) {
+  return { model:'模型', product:'产品', research:'研究', industry:'行业', tool:'工具' }[cat] || cat;
+}
+
+// ── AIHOT ────────────────────────────────────────────────────────────────────
+const CATEGORY_ORDER = ['model','product','tool','research','industry'];
+const CATEGORY_NAME = { model:'模型发布', product:'产品动态', tool:'工具', research:'研究论文', industry:'行业动态' };
+
+function renderAihot(data) {
+  const items = data.items || [];
+  document.getElementById('aihot-count').textContent = items.length;
+  if (data._cachedAt) setTs(data._cachedAt);
+
+  if (!items.length) {
+    document.getElementById('panel-aihot').innerHTML = '<div class="empty">暂无新资讯</div>';
+    return;
+  }
+
+  const groups = {};
+  for (const item of items) {
+    const cat = item.category || 'industry';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(item);
+  }
+
+  const cats = [...CATEGORY_ORDER.filter(c => groups[c]), ...Object.keys(groups).filter(c => !CATEGORY_ORDER.includes(c))];
+  let html = '';
+  for (const cat of cats) {
+    const label = CATEGORY_NAME[cat] || cat;
+    html += `<div class="category-group">
+      <div class="category-label">${esc(label)}</div>`;
+    for (const item of groups[cat]) {
+      html += `
+        <a class="news-card" href="${esc(item.url)}" target="_blank" rel="noopener">
+          <div class="news-title">${esc(item.title)}</div>
+          ${item.summary ? `<div class="news-summary">${esc(item.summary)}</div>` : ''}
+          <div class="news-meta">
+            <span class="news-tag ${tagClass(item.category)}">${tagLabel(item.category)}</span>
+            <span class="news-source">${esc((item.source||'').split('：')[0].split('（')[0])}</span>
+            <span class="news-date">${fmtDate(item.publishedAt)}</span>
+          </div>
+        </a>`;
+    }
+    html += '</div>';
+  }
+  document.getElementById('panel-aihot').innerHTML = html;
+}
+
+// ── Builders ──────────────────────────────────────────────────────────────────
+let pendingEmbeds = []; // [{url, containerId}]
+
+function buildBuilders(data) {
+  pendingEmbeds = [];
+  const builders = data.x || [];
+  const podcasts = data.podcasts || [];
+  document.getElementById('builders-count').textContent = builders.length;
+  if (data._cachedAt) setTs(data._cachedAt);
+
+  let html = '';
+
+  if (podcasts.length) {
+    html += '<div class="section-label">播客</div>';
+    for (const p of podcasts) {
+      html += `<div class="podcast-card">
+        <div class="podcast-show">${esc(p.name)}</div>
+        <div class="podcast-title">${esc(p.title)}</div>
+        <div class="podcast-footer">
+          <span class="podcast-date">${fmtDate(p.publishedAt)}</span>
+          <a class="podcast-link" href="${esc(p.url)}" target="_blank">收听 →</a>
+        </div>
+      </div>`;
+    }
+  }
+
+  html += '<div class="section-label">Builder 动态</div>';
+
+  for (const b of builders) {
+    const h = hue(b.handle || b.name);
+    html += `<div class="builder-card">
+      <div class="builder-header">
+        <div class="avatar" style="background:linear-gradient(135deg,hsl(${h},45%,25%),hsl(${(h+40)%360},55%,45%))">${initials(b.name)}</div>
+        <div>
+          <div class="builder-name">${esc(b.name)}</div>
+          <div class="builder-handle">@${esc(b.handle)}</div>
+          ${b.bio ? `<div class="builder-bio">${esc(b.bio)}</div>` : ''}
+        </div>
+      </div>`;
+
+    for (const t of (b.tweets || [])) {
+      const tid = (t.url || '').split('/').pop().split('?')[0];
+      const cid = 'embed-' + tid;
+      if (tid && /^\d+$/.test(tid)) {
+        pendingEmbeds.push({ tid, cid, fallbackText: t.text, fallbackUrl: t.url });
+        html += `<div class="tweet-embed-wrapper" id="${cid}">
+          <div class="tweet-fallback">
+            <div class="tweet-fallback-text">${esc(t.text)}</div>
+            ${t.url ? `<a class="tweet-fallback-link" href="${esc(t.url)}" target="_blank">查看原推 →</a>` : ''}
+          </div>
+        </div>`;
+      } else {
+        html += `<div class="tweet-fallback">
+          <div class="tweet-fallback-text">${esc(t.text)}</div>
+          ${t.url ? `<a class="tweet-fallback-link" href="${esc(t.url)}" target="_blank">查看原推 →</a>` : ''}
+        </div>`;
+      }
+    }
+
+    html += '<hr class="divider"></div>';
+  }
+
+  document.getElementById('panel-builders').innerHTML = html;
+}
+
+function renderEmbeds() {
+  if (!pendingEmbeds.length) return;
+  const toLoad = [...pendingEmbeds];
+  pendingEmbeds = [];
+
+  toLoad.forEach(({ tid, cid }) => {
+    const container = document.getElementById(cid);
+    if (!container) return;
+    container.innerHTML = `<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true">
+      <a href="https://twitter.com/i/web/status/${tid}"></a>
+    </blockquote>`;
+  });
+
+  // Load Twitter widgets once all blockquotes are in DOM
+  if (window.twttr && window.twttr.widgets) {
+    window.twttr.widgets.load();
+  } else {
+    // widgets.js not loaded yet, load it now
+    const s = document.createElement('script');
+    s.src = 'https://platform.twitter.com/widgets.js';
+    document.body.appendChild(s);
+  }
+}
+
+// ── Timestamps ────────────────────────────────────────────────────────────────
+function setTs(iso) {
+  document.getElementById('ts').textContent = '更新于 ' + new Date(iso).toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' });
+}
+
+// ── BuilderPulse ──────────────────────────────────────────────────────────────
+function renderBuilderPulse(data) {
+  if (!data || !data.markdown) {
+    document.getElementById('panel-builderpulse').innerHTML = '<div class="empty">暂无内容</div>';
+    return;
+  }
+  if (data._cachedAt) setTs(data._cachedAt);
+  const html = marked.parse(data.markdown);
+  document.getElementById('panel-builderpulse').innerHTML = `<div class="bp-content">${html}</div>`;
+}
+
+// ── Load / Refresh ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  const [ah, bl, bp] = await Promise.all([
+    fetch('/api/aihot').then(r=>r.json()).catch(()=>({ items: [] })),
+    fetch('/api/builders').then(r=>r.json()).catch(()=>({ x:[], podcasts:[] })),
+    fetch('/api/builderpulse').then(r=>r.json()).catch(()=>({ markdown: '' }))
+  ]);
+  renderAihot(ah);
+  buildBuilders(bl);
+  renderBuilderPulse(bp);
+  if (currentTab === 'builders') renderEmbeds();
+}
+
+async function refreshAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+  ['aihot','builders','builderpulse'].forEach(id => {
+    document.getElementById('panel-' + id).innerHTML = '<div class="loading"><div class="spinner"></div><div class="loading-text">正在刷新…</div></div>';
+  });
+  const [ah, bl, bp] = await Promise.all([
+    fetch('/api/aihot/refresh').then(r=>r.json()).catch(()=>({ items: [] })),
+    fetch('/api/builders/refresh').then(r=>r.json()).catch(()=>({ x:[], podcasts:[] })),
+    fetch('/api/builderpulse/refresh').then(r=>r.json()).catch(()=>({ markdown: '' }))
+  ]);
+  renderAihot(ah);
+  buildBuilders(bl);
+  renderBuilderPulse(bp);
+  if (currentTab === 'builders') renderEmbeds();
+  btn.classList.remove('loading');
+}
+
+loadAll();
+</script>
+</body>
+</html>
